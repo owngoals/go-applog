@@ -1,7 +1,9 @@
 package goapplog
 
 import (
+	"github.com/olivere/elastic/v7"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/sohlich/elogrus.v7"
 	"os"
 )
 
@@ -11,9 +13,10 @@ var (
 	DefaultPort            = 0
 	DefaultNode            = 0
 	DefaultLevel           = logrus.InfoLevel
-	DefaultReportCaller    = true
 	DefaultFilePath        = "app.log"
 	DefaultTimestampFormat = "2006-01-02 15:04:05.000"
+	// elasticsearch
+	DefaultElasticsearchIndex = "applog"
 )
 
 type Options struct {
@@ -25,6 +28,9 @@ type Options struct {
 	ReportCaller    bool
 	FilePath        string
 	TimestampFormat string
+	// elasticsearch
+	Elasticsearch      *elastic.Client
+	ElasticsearchIndex string
 }
 
 type Option func(o *Options)
@@ -77,16 +83,30 @@ func TimestampFormat(s string) Option {
 	}
 }
 
+func Elasticsearch(c *elastic.Client) Option {
+	return func(o *Options) {
+		o.Elasticsearch = c
+	}
+}
+
+func ElasticsearchIndex(s string) Option {
+	return func(o *Options) {
+		o.ElasticsearchIndex = s
+	}
+}
+
 func newOptions(options ...Option) Options {
 	opt := Options{
-		Name:            DefaultName,
-		IP:              DefaultIP,
-		Port:            DefaultPort,
-		Node:            DefaultNode,
-		Level:           DefaultLevel,
-		ReportCaller:    DefaultReportCaller,
-		FilePath:        DefaultFilePath,
-		TimestampFormat: DefaultTimestampFormat,
+		Name:               DefaultName,
+		IP:                 DefaultIP,
+		Port:               DefaultPort,
+		Node:               DefaultNode,
+		Level:              DefaultLevel,
+		ReportCaller:       true,
+		FilePath:           DefaultFilePath,
+		TimestampFormat:    DefaultTimestampFormat,
+		Elasticsearch:      nil,
+		ElasticsearchIndex: DefaultElasticsearchIndex,
 	}
 
 	for _, o := range options {
@@ -116,5 +136,13 @@ func newLogger(options ...Option) *logrus.Entry {
 		panic(err)
 	}
 	e.Logger.SetOutput(f)
+	// Elasticsearch
+	if o.Elasticsearch != nil {
+		hook, err := elogrus.NewAsyncElasticHook(o.Elasticsearch, o.IP, o.Level, o.ElasticsearchIndex)
+		if err != nil {
+			panic(err)
+		}
+		e.Logger.Hooks.Add(hook)
+	}
 	return e
 }
