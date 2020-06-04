@@ -12,7 +12,7 @@ var (
 	DefaultNode            = 0
 	DefaultLevel           = logrus.InfoLevel
 	DefaultReportCaller    = true
-	DefaultFilePath        = "logs/app.log"
+	DefaultFilePath        = "app.log"
 	DefaultTimestampFormat = "2006-01-02 15:04:05.000"
 )
 
