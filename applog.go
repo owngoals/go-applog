@@ -26,6 +26,7 @@ type Options struct {
 	Node            int
 	Level           logrus.Level
 	ReportCaller    bool
+	FileEnable      bool
 	FilePath        string
 	TimestampFormat string
 	// elasticsearch
@@ -77,6 +78,12 @@ func FilePath(s string) Option {
 	}
 }
 
+func FileEnable(b bool) Option {
+	return func(o *Options) {
+		o.FileEnable = b
+	}
+}
+
 func TimestampFormat(s string) Option {
 	return func(o *Options) {
 		o.TimestampFormat = s
@@ -103,6 +110,7 @@ func newOptions(options ...Option) Options {
 		Node:               DefaultNode,
 		Level:              DefaultLevel,
 		ReportCaller:       true,
+		FileEnable:         false,
 		FilePath:           DefaultFilePath,
 		TimestampFormat:    DefaultTimestampFormat,
 		Elasticsearch:      nil,
@@ -131,11 +139,15 @@ func newLogger(options ...Option) *logrus.Entry {
 	e.Logger.SetFormatter(&logrus.JSONFormatter{TimestampFormat: o.TimestampFormat})
 	e.Logger.SetLevel(o.Level)
 	e.Logger.SetReportCaller(o.ReportCaller)
-	f, err := os.OpenFile(o.FilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		panic(err)
+	e.Logger.SetOutput(os.Stdout)
+	// file
+	if o.FileEnable {
+		f, err := os.OpenFile(o.FilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+		if err != nil {
+			panic(err)
+		}
+		e.Logger.SetOutput(f)
 	}
-	e.Logger.SetOutput(f)
 	// Elasticsearch
 	if o.Elasticsearch != nil {
 		hook, err := elogrus.NewAsyncElasticHook(o.Elasticsearch, o.IP, o.Level, o.ElasticsearchIndex)
